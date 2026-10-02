@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id                  Int      @id @default(autoincrement())
+  title               String
+  company             String
+  description         String
+  requiredSkills      String   @default("[]")
+  location            String
+  salaryMin           Int?
+  salaryMax           Int?
+  experience          String
+  employmentType      String
+  category            String
+  openings            Int
+  applicationDeadline DateTime?
+  postedAt            DateTime @default(now())
+  status              String   @default("ACTIVE")
+  approved            Boolean  @default(false)
+  recruiterId         Int
+}

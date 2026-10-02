@@ -1,0 +1,178 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000/api
+    ports:
+      - "5173:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PACKAGE: gateway
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:5173
+      AUTH_SERVICE_URL: http://auth-service:4001
+      USER_SERVICE_URL: http://user-service:4003
+      JOB_SERVICE_URL: http://job-service:4002
+      APPLICATION_SERVICE_URL: http://application-service:4004
+    ports:
+      - "4000:4000"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+      application-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PACKAGE: services/auth-service
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      DATABASE_URL: file:./data/auth.db
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deployment}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-local-internal-key-change-before-deployment}
+      USER_SERVICE_URL: http://user-service:4003
+    ports:
+      - "4001:4001"
+    volumes:
+      - auth-data:/app/services/auth-service/prisma/data
+    depends_on:
+      user-service:
+        condition: service_healthy
+    command: ["sh", "-c", "npm run db:push --workspace services/auth-service && npm run seed --workspace services/auth-service && npm run start --workspace services/auth-service"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+  job-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PACKAGE: services/job-service
+    environment:
+      NODE_ENV: production
+      PORT: 4002
+      DATABASE_URL: file:./data/job.db
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deployment}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-local-internal-key-change-before-deployment}
+      USER_SERVICE_URL: http://user-service:4003
+      APPLICATION_SERVICE_URL: http://application-service:4004
+    ports:
+      - "4002:4002"
+    volumes:
+      - job-data:/app/services/job-service/prisma/data
+    depends_on:
+      user-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    command: ["sh", "-c", "npm run db:push --workspace services/job-service && npm run seed --workspace services/job-service && npm run start --workspace services/job-service"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PACKAGE: services/user-service
+    environment:
+      NODE_ENV: production
+      PORT: 4003
+      DATABASE_URL: file:./data/user.db
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deployment}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-local-internal-key-change-before-deployment}
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - "4003:4003"
+    volumes:
+      - user-data:/app/services/user-service/prisma/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+  application-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_PACKAGE: services/application-service
+    environment:
+      NODE_ENV: production
+      PORT: 4004
+      DATABASE_URL: file:./data/application.db
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deployment}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-local-internal-key-change-before-deployment}
+      USER_SERVICE_URL: http://user-service:4003
+      JOB_SERVICE_URL: http://job-service:4002
+      UPLOAD_DIR: /app/services/application-service/uploads
+    ports:
+      - "4004:4004"
+    volumes:
+      - application-data:/app/services/application-service/prisma/data
+      - application-uploads:/app/services/application-service/uploads
+    depends_on:
+      user-service:
+        condition: service_healthy
+      job-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [job-portal-network]
+    restart: unless-stopped
+
+volumes:
+  auth-data:
+  user-data:
+  job-data:
+  application-data:
+  application-uploads:
+
+networks:
+  job-portal-network:
+    name: job-portal-network
+    driver: bridge

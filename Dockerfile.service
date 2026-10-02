@@ -1,0 +1,13 @@
+FROM node:20-alpine
+
+WORKDIR /app
+ARG SERVICE_PACKAGE
+ENV SERVICE_PACKAGE=${SERVICE_PACKAGE}
+
+COPY . .
+RUN npm ci \
+  && npm run prisma:generate --workspace "${SERVICE_PACKAGE}" \
+  && npm run build --workspace "${SERVICE_PACKAGE}"
+
+EXPOSE 4000 4001 4002 4003 4004
+CMD ["sh", "-c", "npm run db:push --workspace \"$SERVICE_PACKAGE\" && npm run start --workspace \"$SERVICE_PACKAGE\""]

@@ -1,0 +1,45 @@
+{
+  "name": "job-portal",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend",
+    "gateway",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/setup-env.mjs && concurrently -k \"npm run dev:frontend\" \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:user\" \"npm run dev:job\" \"npm run dev:application\"",
+    "dev:frontend": "node scripts/setup-env.mjs && npm run dev --workspace frontend",
+    "dev:gateway": "node scripts/setup-env.mjs && npm run dev --workspace gateway",
+    "dev:auth": "node scripts/setup-env.mjs && npm run dev --workspace services/auth-service",
+    "dev:user": "node scripts/setup-env.mjs && npm run dev --workspace services/user-service",
+    "dev:job": "node scripts/setup-env.mjs && npm run dev --workspace services/job-service",
+    "dev:application": "node scripts/setup-env.mjs && npm run dev --workspace services/application-service",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "prisma:generate": "npm run prisma:generate --workspace services/auth-service && npm run prisma:generate --workspace services/user-service && npm run prisma:generate --workspace services/job-service && npm run prisma:generate --workspace services/application-service",
+    "prisma:migrate": "npm run prisma:migrate --workspace services/auth-service && npm run prisma:migrate --workspace services/user-service && npm run prisma:migrate --workspace services/job-service && npm run prisma:migrate --workspace services/application-service",
+    "db:push": "node scripts/setup-env.mjs && npm run db:push --workspace services/auth-service && npm run db:push --workspace services/user-service && npm run db:push --workspace services/job-service && npm run db:push --workspace services/application-service",
+    "db:seed": "node scripts/setup-env.mjs && npm run seed --workspace services/auth-service && npm run seed --workspace services/job-service"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "concurrently": "^9.0.1",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.38.0"
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true
+  }
+}

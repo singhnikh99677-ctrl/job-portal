@@ -1,0 +1,341 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: auth-data
+  namespace: job-portal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: job-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: ghcr.io/your-org/job-portal-auth-service:latest
+          ports:
+            - containerPort: 4001
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4001"
+            - name: DATABASE_URL
+              value: file:./data/auth.db
+            - name: USER_SERVICE_URL
+              value: http://user-service:4003
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: INTERNAL_SERVICE_KEY
+          volumeMounts:
+            - name: database
+              mountPath: /app/services/auth-service/prisma/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            periodSeconds: 20
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: auth-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: job-portal
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 4001
+      targetPort: 4001
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-data
+  namespace: job-portal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: job-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: ghcr.io/your-org/job-portal-user-service:latest
+          ports:
+            - containerPort: 4003
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4003"
+            - name: DATABASE_URL
+              value: file:./data/user.db
+            - name: AUTH_SERVICE_URL
+              value: http://auth-service:4001
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: INTERNAL_SERVICE_KEY
+          volumeMounts:
+            - name: database
+              mountPath: /app/services/user-service/prisma/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4003
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4003
+            periodSeconds: 20
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: user-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: job-portal
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 4003
+      targetPort: 4003
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: job-data
+  namespace: job-portal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-service
+  namespace: job-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-service
+  template:
+    metadata:
+      labels:
+        app: job-service
+    spec:
+      containers:
+        - name: job-service
+          image: ghcr.io/your-org/job-portal-job-service:latest
+          ports:
+            - containerPort: 4002
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4002"
+            - name: DATABASE_URL
+              value: file:./data/job.db
+            - name: USER_SERVICE_URL
+              value: http://user-service:4003
+            - name: APPLICATION_SERVICE_URL
+              value: http://application-service:4004
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: INTERNAL_SERVICE_KEY
+          volumeMounts:
+            - name: database
+              mountPath: /app/services/job-service/prisma/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4002
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4002
+            periodSeconds: 20
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: job-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-service
+  namespace: job-portal
+spec:
+  selector:
+    app: job-service
+  ports:
+    - port: 4002
+      targetPort: 4002
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: application-data
+  namespace: job-portal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: application-uploads
+  namespace: job-portal
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: application-service
+  namespace: job-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: application-service
+  template:
+    metadata:
+      labels:
+        app: application-service
+    spec:
+      containers:
+        - name: application-service
+          image: ghcr.io/your-org/job-portal-application-service:latest
+          ports:
+            - containerPort: 4004
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4004"
+            - name: DATABASE_URL
+              value: file:./data/application.db
+            - name: USER_SERVICE_URL
+              value: http://user-service:4003
+            - name: JOB_SERVICE_URL
+              value: http://job-service:4002
+            - name: UPLOAD_DIR
+              value: /app/services/application-service/uploads
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: JWT_SECRET
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: job-portal-secret
+                  key: INTERNAL_SERVICE_KEY
+          volumeMounts:
+            - name: database
+              mountPath: /app/services/application-service/prisma/data
+            - name: uploads
+              mountPath: /app/services/application-service/uploads
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4004
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4004
+            periodSeconds: 20
+      volumes:
+        - name: database
+          persistentVolumeClaim:
+            claimName: application-data
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: application-uploads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: application-service
+  namespace: job-portal
+spec:
+  selector:
+    app: application-service
+  ports:
+    - port: 4004
+      targetPort: 4004
