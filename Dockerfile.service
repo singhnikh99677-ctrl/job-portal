@@ -1,13 +1,22 @@
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
+
 ARG SERVICE_PACKAGE
 ENV SERVICE_PACKAGE=${SERVICE_PACKAGE}
 
+RUN apt-get update \
+    && apt-get install -y openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY . .
+
 RUN npm ci \
-  && npm run prisma:generate --workspace "${SERVICE_PACKAGE}" \
-  && npm run build --workspace "${SERVICE_PACKAGE}"
+    && if [ "${SERVICE_PACKAGE}" != "gateway" ]; then \
+         npm run prisma:generate --workspace "${SERVICE_PACKAGE}"; \
+       fi \
+    && npm run build --workspace "${SERVICE_PACKAGE}"
 
 EXPOSE 4000 4001 4002 4003 4004
-CMD ["sh", "-c", "npm run db:push --workspace \"$SERVICE_PACKAGE\" && npm run start --workspace \"$SERVICE_PACKAGE\""]
+
+CMD ["sh", "-c", "if [ \"$SERVICE_PACKAGE\" != \"gateway\" ]; then npm run db:push --workspace \"$SERVICE_PACKAGE\"; fi && npm run start --workspace \"$SERVICE_PACKAGE\""]
