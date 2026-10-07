@@ -128,3 +128,4 @@ npm run prisma:migrate --workspace services/auth-service
 ```
 
 Repeat with `services/user-service`, `services/job-service`, or `services/application-service` to operate on the other isolated database.
+Jenkins CI pipeline configured successfully.
